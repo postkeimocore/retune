@@ -23,7 +23,7 @@ export function usePitchEngine({ targetNote, targetHz, toleranceCents }: UsePitc
   const streamRef = useRef<MediaStream | null>(null);
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
-  const bufferRef = useRef<Float32Array | null>(null);
+  const bufferRef = useRef<Float32Array<ArrayBuffer> | null>(null);
   const toneRef = useRef<ReferenceToneController | null>(null);
   const rafRef = useRef<number | null>(null);
   const activeRef = useRef(false);
@@ -119,7 +119,9 @@ export function usePitchEngine({ targetNote, targetHz, toleranceCents }: UsePitc
         source.connect(analyser);
         sourceRef.current = source;
         analyserRef.current = analyser;
-        bufferRef.current = new Float32Array(analyser.fftSize);
+        bufferRef.current = new Float32Array(
+          new ArrayBuffer(analyser.fftSize * Float32Array.BYTES_PER_ELEMENT),
+        );
       }
 
       if (!activeRef.current) {
