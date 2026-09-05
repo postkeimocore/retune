@@ -87,7 +87,7 @@ export function createHoldScorer(config: HoldScorerConfig): HoldScorer {
     if (lastEligibleInTune) inTuneMs += delta;
 
     lastEligibleTimestamp = frame.timestamp;
-    lastEligibleInTune = Math.abs(frame.centError) <= config.toleranceCents;
+    lastEligibleInTune = Math.abs(frame.centError!) <= config.toleranceCents;
 
     return makeSnapshot();
   };
