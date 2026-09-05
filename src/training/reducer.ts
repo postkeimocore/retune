@@ -1,4 +1,4 @@
-import type { SessionPhase, TrainingState } from '../types';
+import type { SessionPhase, TrainingMode, TrainingState, ToleranceCents } from '../types';
 
 export interface TrainingReducerState extends TrainingState {
   resumePhase: SessionPhase | null;
@@ -8,6 +8,8 @@ export type TrainingEvent =
   | { type: 'START_REFERENCE' }
   | { type: 'BEGIN_COUNT_IN' }
   | { type: 'BEGIN_LISTENING' }
+  | { type: 'UPDATE_EVALUATION'; elapsedMs: number; validFrameRatio: number }
+  | { type: 'SYNC_SETTINGS'; mode: TrainingMode; bpm: number; holdDurationMs: number | null; toleranceCents: ToleranceCents }
   | { type: 'CLEAR' }
   | { type: 'NEXT_TARGET'; targetNote: string; targetHz: number }
   | { type: 'PAUSE' }
@@ -29,6 +31,16 @@ export function trainingReducer(
       return { ...state, phase: 'countIn' };
     case 'BEGIN_LISTENING':
       return { ...state, phase: 'listening' };
+    case 'UPDATE_EVALUATION':
+      return { ...state, elapsedMs: event.elapsedMs, validFrameRatio: event.validFrameRatio };
+    case 'SYNC_SETTINGS':
+      return {
+        ...state,
+        mode: event.mode,
+        bpm: event.bpm,
+        holdDurationMs: event.holdDurationMs,
+        toleranceCents: event.toleranceCents,
+      };
     case 'CLEAR':
       return { ...state, phase: 'success', success: true };
     case 'NEXT_TARGET':
