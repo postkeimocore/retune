@@ -40,7 +40,7 @@ describe('hold scorer', () => {
     expect(scorer.snapshot().validFrameRatio).toBeGreaterThanOrEqual(0.8);
   });
 
-  it('does not count a low-confidence frame as a wrong note', () => {
+  it('does not count a low-confidence interval as wrong or eligible time', () => {
     const scorer = createHoldScorer({ ...config, requiredMs: 500, onsetGraceMs: 0 });
     scorer.push(frame(0, 0));
     scorer.push(frame(100, 0));
@@ -49,7 +49,10 @@ describe('hold scorer', () => {
     scorer.push(frame(300, 0));
     scorer.push(frame(400, 0));
     scorer.push(frame(500, 0));
+    scorer.push(frame(600, 0));
     const result = scorer.snapshot();
+    expect(result.eligibleMs).toBe(550);
+    expect(result.inTuneMs).toBe(550);
     expect(result.validFrameRatio).toBe(1);
     expect(result.success).toBe(true);
   });
