@@ -98,17 +98,13 @@ export function useTrainingSession(options: UseTrainingSessionOptions = {}) {
     pitchEngine.resetDetector();
   }, [pitchEngine.resetDetector]);
 
-  const beginAttempt = useCallback(
-    (targetNote: string, targetHz: number) => {
+  const runPreparedAttempt = useCallback(
+    (targetHz: number) => {
       clearTimers();
       resetAttempt();
       dispatch({ type: 'START_REFERENCE' });
 
-      if (audioEnabled) {
-        void pitchEngine.activate().then((ready) => {
-          if (ready) pitchEngine.playReference(targetHz);
-        });
-      }
+      if (audioEnabled) void pitchEngine.playReference(targetHz);
 
       schedule(() => {
         if (!settings.continuousReference) pitchEngine.stopReference();
@@ -119,7 +115,6 @@ export function useTrainingSession(options: UseTrainingSessionOptions = {}) {
     [
       audioEnabled,
       clearTimers,
-      pitchEngine.activate,
       pitchEngine.playReference,
       pitchEngine.stopReference,
       resetAttempt,
@@ -127,6 +122,27 @@ export function useTrainingSession(options: UseTrainingSessionOptions = {}) {
       settings.bpm,
       settings.continuousReference,
     ],
+  );
+
+  const beginAttempt = useCallback(
+    (targetNote: string, targetHz: number) => {
+      void targetNote;
+      if (!audioEnabled) {
+        runPreparedAttempt(targetHz);
+        return;
+      }
+
+      clearTimers();
+      resetAttempt();
+      void pitchEngine.activate().then((result) => {
+        if (result !== 'ready') {
+          dispatch({ type: 'STOP' });
+          return;
+        }
+        runPreparedAttempt(targetHz);
+      });
+    },
+    [audioEnabled, clearTimers, pitchEngine.activate, resetAttempt, runPreparedAttempt],
   );
 
   const advanceTargetAndStart = useCallback(() => {
@@ -199,12 +215,16 @@ export function useTrainingSession(options: UseTrainingSessionOptions = {}) {
   }, [clearTimers, pitchEngine.stopReference]);
 
   const resume = useCallback(() => {
-    dispatch({ type: 'RESUME' });
-    if (audioEnabled) {
-      void pitchEngine.activate().then((ready) => {
-        if (ready && settings.continuousReference) pitchEngine.playReference(state.targetHz);
-      });
+    if (!audioEnabled) {
+      dispatch({ type: 'RESUME' });
+      return;
     }
+
+    void pitchEngine.activate().then((result) => {
+      if (result !== 'ready') return;
+      dispatch({ type: 'RESUME' });
+      if (settings.continuousReference) void pitchEngine.playReference(state.targetHz);
+    });
   }, [audioEnabled, pitchEngine.activate, pitchEngine.playReference, settings.continuousReference, state.targetHz]);
 
   const stop = useCallback(() => {
@@ -215,12 +235,10 @@ export function useTrainingSession(options: UseTrainingSessionOptions = {}) {
 
   const playReference = useCallback(() => {
     if (!audioEnabled) return;
-    void pitchEngine.activate().then((ready) => {
-      if (!ready) return;
-      pitchEngine.playReference(state.targetHz);
-      schedule(pitchEngine.stopReference, 900);
+    void pitchEngine.playReference(state.targetHz).then((played) => {
+      if (played) schedule(pitchEngine.stopReference, 900);
     });
-  }, [audioEnabled, pitchEngine.activate, pitchEngine.playReference, pitchEngine.stopReference, schedule, state.targetHz]);
+  }, [audioEnabled, pitchEngine.playReference, pitchEngine.stopReference, schedule, state.targetHz]);
 
   useEffect(() => {
     scorerRef.current = createHoldScorer({

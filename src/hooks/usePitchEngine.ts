@@ -6,6 +6,7 @@ import { frequencyToCents } from '../scoring/pitchMath';
 import type { PitchFrame, ToleranceCents } from '../types';
 
 export type MicrophonePermissionState = 'unknown' | 'granted' | 'denied' | 'unavailable';
+export type PitchEngineActivationResult = 'ready' | 'permissionRequired' | 'unavailable';
 
 export interface UsePitchEngineOptions {
   targetNote: string;
@@ -37,8 +38,36 @@ export function usePitchEngine({ targetNote, targetHz, toleranceCents }: UsePitc
   targetHzRef.current = targetHz;
   toleranceRef.current = toleranceCents;
 
+  const ensureAudioContext = useCallback(async (): Promise<AudioContext | null> => {
+    if (typeof AudioContext === 'undefined') {
+      setError('このブラウザでは音声再生・解析を利用できません。');
+      return null;
+    }
+
+    if (!contextRef.current || contextRef.current.state === 'closed') {
+      contextRef.current = new AudioContext();
+      toneRef.current = new ReferenceToneController(contextRef.current);
+    }
+
+    const context = contextRef.current;
+    if (context.state === 'suspended') await context.resume();
+    return context;
+  }, []);
+
   const stopReference = useCallback(() => {
     toneRef.current?.stop();
+  }, []);
+
+  const stopCapture = useCallback(() => {
+    activeRef.current = false;
+    if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    rafRef.current = null;
+    sourceRef.current?.disconnect();
+    sourceRef.current = null;
+    analyserRef.current = null;
+    bufferRef.current = null;
+    stopMicrophoneStream(streamRef.current);
+    streamRef.current = null;
   }, []);
 
   const analysisLoop = useCallback(() => {
@@ -78,34 +107,20 @@ export function usePitchEngine({ targetNote, targetHz, toleranceCents }: UsePitc
   }, []);
 
   const deactivate = useCallback(() => {
-    activeRef.current = false;
-    if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
-    rafRef.current = null;
     stopReference();
-    sourceRef.current?.disconnect();
-    sourceRef.current = null;
-    analyserRef.current = null;
-    bufferRef.current = null;
-    stopMicrophoneStream(streamRef.current);
-    streamRef.current = null;
-  }, [stopReference]);
+    stopCapture();
+  }, [stopCapture, stopReference]);
 
-  const activate = useCallback(async (): Promise<boolean> => {
+  const activate = useCallback(async (): Promise<PitchEngineActivationResult> => {
     setError(null);
+
+    const context = await ensureAudioContext();
+    if (!context) {
+      setPermission('unavailable');
+      return 'unavailable';
+    }
+
     try {
-      if (typeof AudioContext === 'undefined') {
-        setPermission('unavailable');
-        setError('このブラウザでは音声解析を利用できません。');
-        return false;
-      }
-
-      if (!contextRef.current || contextRef.current.state === 'closed') {
-        contextRef.current = new AudioContext();
-        toneRef.current = new ReferenceToneController(contextRef.current);
-      }
-      const context = contextRef.current;
-      if (context.state === 'suspended') await context.resume();
-
       if (!streamRef.current) {
         streamRef.current = await requestMicrophoneStream();
         setPermission('granted');
@@ -129,25 +144,36 @@ export function usePitchEngine({ targetNote, targetHz, toleranceCents }: UsePitc
         lastPublishRef.current = 0;
         rafRef.current = requestAnimationFrame(analysisLoop);
       }
-      return true;
+      return 'ready';
     } catch (caught) {
       const name = caught instanceof DOMException ? caught.name : '';
+      stopCapture();
+
       if (name === 'NotAllowedError' || name === 'SecurityError') {
         setPermission('denied');
-        setError('マイクの使用が許可されていません。Safariのサイト設定からマイクを許可してください。');
-      } else {
-        setPermission('unavailable');
-        setError('マイクを開始できませんでした。接続状態とブラウザ設定を確認してください。');
+        setError('マイクの許可が必要です。Safariのサイト設定でこのページの「マイク」を許可し、もう一度開始してください。基準音はそのまま再生できます。');
+        return 'permissionRequired';
       }
-      deactivate();
-      return false;
-    }
-  }, [analysisLoop, deactivate]);
 
-  const playReference = useCallback((frequency = targetHzRef.current) => {
-    if (!(frequency > 0) || !contextRef.current) return;
+      setPermission('unavailable');
+      if (name === 'NotFoundError') {
+        setError('使用できるマイクが見つかりません。マイク付き端末または入力デバイスを接続してから、もう一度開始してください。');
+      } else if (name === 'NotSupportedError') {
+        setError('このブラウザではマイク入力を利用できません。iPhoneではSafariから開いてください。');
+      } else {
+        setError('マイクを開始できませんでした。接続状態とブラウザ設定を確認して、もう一度開始してください。');
+      }
+      return 'unavailable';
+    }
+  }, [analysisLoop, ensureAudioContext, stopCapture]);
+
+  const playReference = useCallback(async (frequency = targetHzRef.current): Promise<boolean> => {
+    if (!(frequency > 0)) return false;
+    const context = await ensureAudioContext();
+    if (!context) return false;
     toneRef.current?.play(frequency);
-  }, []);
+    return true;
+  }, [ensureAudioContext]);
 
   const resetDetector = useCallback(() => {
     detectorRef.current.reset();
