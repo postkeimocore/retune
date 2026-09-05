@@ -29,9 +29,8 @@ export function createHoldScorer(config: HoldScorerConfig): HoldScorer {
   let eligibleMs = 0;
   let inTuneMs = 0;
   let segmentStart: number | null = null;
-  let lastValidTimestamp: number | null = null;
-  let lastScoredTimestamp: number | null = null;
-  let lastScoredInTune = false;
+  let lastEligibleTimestamp: number | null = null;
+  let lastEligibleInTune = false;
 
   const makeSnapshot = (): HoldScoreSnapshot => {
     const validFrameRatio = eligibleMs > 0 ? inTuneMs / eligibleMs : 0;
@@ -48,16 +47,14 @@ export function createHoldScorer(config: HoldScorerConfig): HoldScorer {
     eligibleMs = 0;
     inTuneMs = 0;
     segmentStart = null;
-    lastValidTimestamp = null;
-    lastScoredTimestamp = null;
-    lastScoredInTune = false;
+    lastEligibleTimestamp = null;
+    lastEligibleInTune = false;
   };
 
-  const startSegment = (timestamp: number) => {
-    segmentStart = timestamp;
-    lastValidTimestamp = timestamp;
-    lastScoredTimestamp = null;
-    lastScoredInTune = false;
+  const startSegment = (frame: PitchFrame) => {
+    segmentStart = frame.timestamp;
+    lastEligibleTimestamp = frame.timestamp;
+    lastEligibleInTune = Math.abs(frame.centError!) <= config.toleranceCents;
   };
 
   const push = (frame: PitchFrame): HoldScoreSnapshot => {
@@ -70,40 +67,28 @@ export function createHoldScorer(config: HoldScorerConfig): HoldScorer {
 
     if (!eligibleFrame) return makeSnapshot();
 
-    if (lastValidTimestamp === null) {
-      startSegment(frame.timestamp);
+    if (lastEligibleTimestamp === null || segmentStart === null) {
+      startSegment(frame);
       return makeSnapshot();
     }
 
-    if (frame.timestamp - lastValidTimestamp > config.maxGapMs) {
+    if (frame.timestamp - lastEligibleTimestamp > config.maxGapMs) {
       eligibleMs = 0;
       inTuneMs = 0;
-      startSegment(frame.timestamp);
+      startSegment(frame);
       return makeSnapshot();
     }
 
-    lastValidTimestamp = frame.timestamp;
+    const scoringStart = segmentStart + config.onsetGraceMs;
+    const intervalStart = Math.max(lastEligibleTimestamp, scoringStart);
+    const delta = Math.max(0, frame.timestamp - intervalStart);
 
-    if (segmentStart === null) segmentStart = frame.timestamp;
-    if (frame.timestamp - segmentStart < config.onsetGraceMs) {
-      lastScoredTimestamp = null;
-      return makeSnapshot();
-    }
-
-    const currentInTune = Math.abs(frame.centError!) <= config.toleranceCents;
-
-    if (lastScoredTimestamp === null) {
-      lastScoredTimestamp = frame.timestamp;
-      lastScoredInTune = currentInTune;
-      return makeSnapshot();
-    }
-
-    const delta = Math.max(0, frame.timestamp - lastScoredTimestamp);
     eligibleMs += delta;
-    if (lastScoredInTune) inTuneMs += delta;
+    if (lastEligibleInTune) inTuneMs += delta;
 
-    lastScoredTimestamp = frame.timestamp;
-    lastScoredInTune = currentInTune;
+    lastEligibleTimestamp = frame.timestamp;
+    lastEligibleInTune = Math.abs(frame.centError) <= config.toleranceCents;
+
     return makeSnapshot();
   };
 
