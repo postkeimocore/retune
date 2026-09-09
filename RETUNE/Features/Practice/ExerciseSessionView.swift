@@ -1,9 +1,11 @@
+import SwiftData
 import SwiftUI
 
 struct ExerciseSessionView: View {
     let exercise: ExerciseDefinition
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
     @StateObject private var controller = ExerciseSessionController()
 
     var body: some View {
@@ -21,6 +23,11 @@ struct ExerciseSessionView: View {
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .tabBar)
+        .onChange(of: controller.phase) { _, newPhase in
+            guard newPhase == .result, let result = controller.result else { return }
+            modelContext.insert(AttemptRecord(result: result))
+            try? modelContext.save()
+        }
         .onDisappear {
             controller.cancel()
         }
