@@ -22,4 +22,10 @@ final class NoteMathTests: XCTestCase {
     func testPerfectFifthIs700Cents() {
         XCTAssertEqual(MusicalInterval.perfectFifth.expectedCents, 700)
     }
+
+    func testMIDINoteNames() {
+        XCTAssertEqual(NoteMath.noteName(midi: 60), "C4")
+        XCTAssertEqual(NoteMath.noteName(midi: 61), "C#4")
+        XCTAssertEqual(NoteMath.noteName(midi: 69), "A4")
+    }
 }
