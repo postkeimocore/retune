@@ -1,0 +1,40 @@
+name: RETUNE
+options:
+  bundleIdPrefix: net.degene
+settings:
+  base:
+    IPHONEOS_DEPLOYMENT_TARGET: 17.0
+    SWIFT_VERSION: 5.0
+    CURRENT_PROJECT_VERSION: 1
+    MARKETING_VERSION: 0.4.0
+targets:
+  RETUNE:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: RETUNE
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: net.degene.retune
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: RETUNE
+        INFOPLIST_KEY_NSMicrophoneUsageDescription: RETUNE uses the microphone to measure your sung pitch.
+        TARGETED_DEVICE_FAMILY: "1"
+        CODE_SIGN_STYLE: Automatic
+  RETUNETests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: RETUNETests
+    dependencies:
+      - target: RETUNE
+schemes:
+  RETUNE:
+    build:
+      targets:
+        RETUNE: all
+    test:
+      targets:
+        - RETUNETests
