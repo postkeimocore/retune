@@ -5,6 +5,6 @@ struct PitchDetectionResult: Equatable, Sendable {
     let confidence: Double
 }
 
-protocol PitchDetector {
+protocol PitchDetector: Sendable {
     func detect(samples: [Float], sampleRate: Double) -> PitchDetectionResult?
 }
