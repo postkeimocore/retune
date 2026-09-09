@@ -30,3 +30,11 @@ targets:
       - path: RETUNETests
     dependencies:
       - target: RETUNE
+schemes:
+  RETUNE:
+    build:
+      targets:
+        RETUNE: all
+    test:
+      targets:
+        - RETUNETests
