@@ -5,6 +5,7 @@ struct ExerciseResult: Equatable, Sendable {
     let metrics: AttemptMetrics
     let actualIntervalCents: Double?
     let intervalErrorCents: Double?
+    let debugSnapshot: AttemptDebugSnapshot
 
     var primaryValueText: String {
         if let intervalErrorCents {
