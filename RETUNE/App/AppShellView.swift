@@ -9,7 +9,7 @@ struct AppShellView: View {
             PracticeView()
                 .tabItem { Label("練習", systemImage: "waveform.path.ecg") }
 
-            PlaceholderTabView(title: "履歴", message: "練習履歴はα後半で有効になります。")
+            HistoryView()
                 .tabItem { Label("履歴", systemImage: "chart.xyaxis.line") }
 
             PlaceholderTabView(title: "設定", message: "マイク・音域・表示設定をここにまとめます。")
