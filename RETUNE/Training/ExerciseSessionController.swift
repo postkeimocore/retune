@@ -107,7 +107,8 @@ final class ExerciseSessionController: ObservableObject {
                 definition: exercise,
                 metrics: metrics,
                 actualIntervalCents: intervalValues.actual,
-                intervalErrorCents: intervalValues.error
+                intervalErrorCents: intervalValues.error,
+                debugSnapshot: AttemptDebugSnapshot(frames: frames)
             )
             phase = .result
         } catch is CancellationError {
