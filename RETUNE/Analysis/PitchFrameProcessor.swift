@@ -1,6 +1,6 @@
 import Foundation
 
-struct PitchFrameProcessor {
+struct PitchFrameProcessor: Sendable {
     var detector: any PitchDetector
     var minimumRMS: Double
     var minimumConfidence: Double
