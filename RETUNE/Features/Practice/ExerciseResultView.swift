@@ -6,6 +6,8 @@ struct ExerciseResultView: View {
     let retry: () -> Void
     let close: () -> Void
 
+    @AppStorage("developerModeEnabled") private var developerModeEnabled = false
+
     var body: some View {
         VStack(spacing: 18) {
             if let result {
@@ -30,6 +32,10 @@ struct ExerciseResultView: View {
                         metricRow("ドリフト", String(format: "%+.1f¢/s", result.metrics.driftCentsPerSecond))
                     }
                 }
+
+                if developerModeEnabled {
+                    developerCard(result)
+                }
             } else {
                 Image(systemName: "waveform.badge.exclamationmark")
                     .font(.system(size: 42))
@@ -52,6 +58,27 @@ struct ExerciseResultView: View {
         }
     }
 
+    private func developerCard(_ result: ExerciseResult) -> some View {
+        let debug = result.debugSnapshot
+        return GlassCard {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("DEVELOPER")
+                    .font(.caption2.bold())
+                    .tracking(1.8)
+                    .foregroundStyle(RETuneTheme.accent)
+
+                metricRow("Target", String(format: "%.2f Hz", result.definition.targetHz))
+                metricRow("Median F0", optionalHz(debug.medianDetectedHz))
+                metricRow("Initial", String(format: "%+.1f¢", result.metrics.initialErrorCents))
+                metricRow("Settling", optionalMilliseconds(result.metrics.settlingTimeMs))
+                metricRow("First frame", optionalMilliseconds(debug.firstAcceptedFrameMs))
+                metricRow("Frames", "\(debug.acceptedFrameCount)")
+                metricRow("Confidence", optionalDecimal(debug.meanConfidence))
+                metricRow("Input RMS", optionalDBFS(debug.meanRMS))
+            }
+        }
+    }
+
     private func metricRow(_ title: String, _ value: String) -> some View {
         HStack {
             Text(title)
@@ -61,5 +88,22 @@ struct ExerciseResultView: View {
                 .font(.system(.body, design: .monospaced).weight(.semibold))
                 .foregroundStyle(RETuneTheme.textPrimary)
         }
+    }
+
+    private func optionalHz(_ value: Double?) -> String {
+        value.map { String(format: "%.2f Hz", $0) } ?? "—"
+    }
+
+    private func optionalMilliseconds(_ value: Double?) -> String {
+        value.map { String(format: "%.0f ms", $0) } ?? "—"
+    }
+
+    private func optionalDecimal(_ value: Double?) -> String {
+        value.map { String(format: "%.3f", $0) } ?? "—"
+    }
+
+    private func optionalDBFS(_ rms: Double?) -> String {
+        guard let rms, rms > 0 else { return "—" }
+        return String(format: "%.1f dBFS", 20 * log10(rms))
     }
 }
