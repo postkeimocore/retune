@@ -16,4 +16,11 @@ enum NoteMath {
     static func frequency(midiOffset: Int, from referenceHz: Double) -> Double {
         referenceHz * pow(2.0, Double(midiOffset) / 12.0)
     }
+
+    static func noteName(midi: Int) -> String {
+        let names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+        let normalized = ((midi % 12) + 12) % 12
+        let octave = midi / 12 - 1
+        return "\(names[normalized])\(octave)"
+    }
 }
